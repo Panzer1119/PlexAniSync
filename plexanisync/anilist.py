@@ -626,7 +626,14 @@ class Anilist:
                             f"Series is not paused or dropped as it has been watched recently. "
                             f"Last watched {days_since_last_viewed} days ago"
                         )
-                    elif should_pause and status != "PAUSED":
+                        return
+                    elif should_pause and should_drop:
+                        # If both are enabled, the higher limit will take precedence, if they are equal it will prefer dropping
+                        if pause_after_days_inactive > drop_after_days_inactive:
+                            should_drop = False
+                        else:
+                            should_pause = False
+                    if should_pause and status != "PAUSED":
                         logger.info(f"Pausing series as it has been inactive for {days_since_last_viewed} days")
                         self.graphql.update_series(series.anilist_id, watched_episode_count, "PAUSED", plex_rating)
                     elif should_drop  and status != "DROPPED":
