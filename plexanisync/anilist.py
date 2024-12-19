@@ -125,6 +125,7 @@ class Anilist:
                         match.watched_episodes,
                         match.anilist_id,
                         average_season_rating or plex_show_rating,
+                        match.total_episodes,
                         match.last_viewed_at
                     )
 
@@ -136,6 +137,7 @@ class Anilist:
 
                 plex_rating = plex_season.rating or plex_show_rating
                 plex_watched_episode_count = plex_season.watched_episodes
+                plex_total_episodes = plex_season.last_episode
                 plex_last_viewed_at = plex_season.last_viewed_at
                 if plex_watched_episode_count == 0:
                     logger.info(
@@ -188,7 +190,7 @@ class Anilist:
                             )
 
                             self.__add_or_update_show_by_id(
-                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating, plex_last_viewed_at
+                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating, plex_total_episodes, plex_last_viewed_at
                             )
 
                         # If custom match found continue to next
@@ -199,7 +201,7 @@ class Anilist:
                         logger.info(
                             f"Series {plex_title} has Anilist ID {plex_anilist_id} in its metadata, using that for updating")
                         self.__add_or_update_show_by_id(anilist_series, plex_title, plex_year, True, plex_watched_episode_count,
-                                                        plex_anilist_id, plex_rating, plex_last_viewed_at)
+                                                        plex_anilist_id, plex_rating, plex_total_episodes, plex_last_viewed_at)
                         continue
 
                     # Regular matching
@@ -247,6 +249,7 @@ class Anilist:
                                     plex_watched_episode_count,
                                     False,
                                     plex_rating,
+                                    plex_total_episodes,
                                     plex_last_viewed_at
                                 )
                                 break
@@ -263,6 +266,7 @@ class Anilist:
                             matched_anilist_series,
                             skip_year_check,
                             plex_rating,
+                            plex_total_episodes,
                             plex_last_viewed_at
                         )
                         matched_anilist_series = []
@@ -279,7 +283,7 @@ class Anilist:
                                 f"Used custom mapping |  title: {plex_title} | season: {season_number} | anilist id: {anime_id}"
                             )
                             self.__add_or_update_show_by_id(
-                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating, plex_last_viewed_at
+                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating, plex_total_episodes, plex_last_viewed_at
                             )
 
                         # If custom match found continue to next
@@ -300,7 +304,7 @@ class Anilist:
                     if media_id_search:
                         self.__add_or_update_show_by_id(
                             anilist_series, plex_title, plex_year, skip_year_check,
-                            plex_watched_episode_count, media_id_search, plex_rating, plex_last_viewed_at
+                            plex_watched_episode_count, media_id_search, plex_rating, plex_total_episodes, plex_last_viewed_at
                         )
                     else:
                         self.__log_failed_match(f"Failed to find valid season title match on AniList for: {plex_title_lookup} season {season_number}")
@@ -452,7 +456,7 @@ class Anilist:
     def __add_or_update_show_by_id(
         self, anilist_series: List[AnilistSeries], plex_title: str, plex_year: int,
         skip_year_check: bool, watched_episodes: int, anime_id: int, plex_rating: int,
-        plex_last_viewed_at: datetime
+        plex_total_episodes: int, plex_last_viewed_at: datetime
     ):
         series = self.__find_mapped_series(anilist_series, anime_id)
         if series:
@@ -470,6 +474,7 @@ class Anilist:
                     [series],
                     skip_year_check,
                     plex_rating,
+                    plex_total_episodes,
                     plex_last_viewed_at
                 )
             else:
@@ -487,12 +492,13 @@ class Anilist:
                 watched_episodes,
                 skip_year_check,
                 plex_rating,
+                plex_total_episodes,
                 plex_last_viewed_at
             )
 
     def __add_by_id(
         self, anilist_id: int, plex_title: str, plex_year: int, plex_watched_episode_count: int, ignore_year: bool, plex_rating: int,
-        plex_last_viewed_at: datetime
+        plex_total_episodes: int, plex_last_viewed_at: datetime
     ):
         media_lookup_result = self.graphql.search_by_id(anilist_id)
         if media_lookup_result:
@@ -503,6 +509,7 @@ class Anilist:
                 [media_lookup_result],
                 ignore_year,
                 plex_rating,
+                plex_total_episodes,
                 plex_last_viewed_at
             )
         else:
@@ -512,10 +519,11 @@ class Anilist:
 
     def __update_entry(
         self, title: str, year: int, watched_episode_count: int, matched_anilist_series: List[AnilistSeries],
-        ignore_year: bool, plex_rating: int, plex_last_viewed_at: datetime
+        ignore_year: bool, plex_rating: int, plex_total_episodes: int, plex_last_viewed_at: datetime
     ):
         pause_after_days_inactive = self.anilist_settings.getint("pause_after_days_inactive", 0)
         drop_after_days_inactive = self.anilist_settings.getint("drop_after_days_inactive", 0)
+        missing_episodes_ignore_inactivity = self.anilist_settings.getboolean("missing_episodes_ignore_inactivity", False)
         if not plex_last_viewed_at:
             logger.debug("No last viewed date found in Plex metadata")
         for series in matched_anilist_series:
@@ -619,6 +627,12 @@ class Anilist:
                             and (status == "CURRENT" or status == "PAUSED")
                     ):
                     days_since_last_viewed = (datetime.now() - plex_last_viewed_at).days
+                    if missing_episodes_ignore_inactivity and plex_total_episodes < anilist_total_episodes:
+                        logger.info(
+                            f"Series is not paused or dropped as Plex is missing {anilist_total_episodes - plex_total_episodes} episodes. "
+                            f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
+                        )
+                        return
                     # Determine if the series should be paused or dropped
                     should_pause = 0 < pause_after_days_inactive < days_since_last_viewed
                     should_drop = 0 < drop_after_days_inactive < days_since_last_viewed

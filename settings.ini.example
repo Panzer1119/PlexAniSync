@@ -29,3 +29,4 @@ log_failed_matches = False
 sync_ratings = False
 pause_after_days_inactive = 0
 drop_after_days_inactive = 0
+missing_episodes_ignore_inactivity = False
