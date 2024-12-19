@@ -456,10 +456,13 @@ class Anilist:
     ):
         series = self.__find_mapped_series(anilist_series, anime_id)
         if series:
-            if series.progress < watched_episodes:
-                logger.info(
-                    f"Updating series: {series.title_english} | Episodes watched: {watched_episodes}"
-                )
+            if series.progress <= watched_episodes:
+                if series.progress == watched_episodes:
+                    logger.debug("Episodes watched was the same on AniList and Plex")
+                else:
+                    logger.info(
+                        f"Updating series: {series.title_english} | Episodes watched: {watched_episodes}"
+                    )
                 self.__update_entry(
                     plex_title,
                     plex_year,
@@ -469,8 +472,6 @@ class Anilist:
                     plex_rating,
                     plex_last_viewed_at
                 )
-            elif series.progress == watched_episodes:
-                logger.debug("Episodes watched was the same on AniList and Plex so skipping update")
             else:
                 logger.debug(
                     f"Episodes watched was higher on AniList [{series.progress}] than on Plex [{watched_episodes}] so skipping update"
