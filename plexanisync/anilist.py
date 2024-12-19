@@ -523,6 +523,7 @@ class Anilist:
     ):
         pause_after_days_inactive = self.anilist_settings.getint("pause_after_days_inactive", 0)
         drop_after_days_inactive = self.anilist_settings.getint("drop_after_days_inactive", 0)
+        drop_maximum_anilist_score = self.anilist_settings.getfloat("drop_maximum_anilist_score", 40.0)
         missing_episodes_ignore_inactivity = self.anilist_settings.getboolean("missing_episodes_ignore_inactivity", False)
         if not plex_last_viewed_at:
             logger.debug("No last viewed date found in Plex metadata")
@@ -653,6 +654,18 @@ class Anilist:
                         logger.info(f"Pausing series as it has been inactive for {days_since_last_viewed} days (last watched {plex_last_viewed_at.astimezone()})")
                         self.graphql.update_series(series.anilist_id, watched_episode_count, "PAUSED", plex_rating)
                     elif should_drop  and status != "DROPPED":
+                        if 0 < drop_maximum_anilist_score < series.score:
+                            logger.info(
+                                f"Series is not dropped as it has a score of {series.score} which is higher than the maximum drop score of {drop_maximum_anilist_score}. "
+                                f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
+                            )
+                            return
+                        elif drop_maximum_anilist_score > 0 and series.score == 0:
+                            logger.info(
+                                f"Series is not dropped as it has no score, but the maximum drop score is set to {drop_maximum_anilist_score}. "
+                                f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
+                            )
+                            return
                         logger.info(f"Dropping series as it has been inactive for {days_since_last_viewed} days (last watched {plex_last_viewed_at.astimezone()})")
                         self.graphql.update_series(series.anilist_id, watched_episode_count, "DROPPED", plex_rating)
                 else:
