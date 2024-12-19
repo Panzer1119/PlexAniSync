@@ -26,6 +26,7 @@ class PlexSeason:
     watched_episodes: int
     first_episode: int
     last_episode: int
+    last_viewed_at: datetime
 
 
 @dataclass
@@ -196,7 +197,8 @@ class PlexModule:
                                 self.__get_plex_rating(season.userRating),
                                 season_watchcount,
                                 season_firstepisode,
-                                season_lastepisode
+                                season_lastepisode,
+                                season.lastViewedAt
                             )
                         )
 
@@ -266,7 +268,7 @@ class PlexModule:
                             show.originalTitle.strip(),
                             show.guid,
                             year,
-                            [PlexSeason(1, rating, 1, 1, 1)],
+                            [PlexSeason(1, rating, 1, 1, 1, show.lastViewedAt)],
                             anilist_id,
                             rating,
                             show.lastViewedAt

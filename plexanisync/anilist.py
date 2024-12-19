@@ -57,7 +57,6 @@ class Anilist:
             plex_seasons = plex_series.seasons
             plex_show_rating = plex_series.rating
             plex_anilist_id = plex_series.anilist_id
-            plex_last_viewed_at = plex_series.last_viewed_at
 
             custom_mapped_seasons = []
 
@@ -90,7 +89,7 @@ class Anilist:
                                 plex_season.last_episode,
                                 [plex_season.season_number],
                                 [plex_season.rating],
-                                plex_last_viewed_at
+                                plex_season.last_viewed_at
                             ))
                             continue
                         # For multiple seasons with the same id
@@ -126,7 +125,7 @@ class Anilist:
                         match.watched_episodes,
                         match.anilist_id,
                         average_season_rating or plex_show_rating,
-                        plex_last_viewed_at
+                        match.last_viewed_at
                     )
 
             # Start processing of any remaining seasons
@@ -137,6 +136,7 @@ class Anilist:
 
                 plex_rating = plex_season.rating or plex_show_rating
                 plex_watched_episode_count = plex_season.watched_episodes
+                plex_last_viewed_at = plex_season.last_viewed_at
                 if plex_watched_episode_count == 0:
                     logger.info(
                         f"Series {plex_title} has 0 watched episodes for "
