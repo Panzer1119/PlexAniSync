@@ -515,6 +515,8 @@ class Anilist:
     ):
         pause_after_days_inactive = self.anilist_settings.getint("pause_after_days_inactive", 0)
         drop_after_days_inactive = self.anilist_settings.getint("drop_after_days_inactive", 0)
+        if not plex_last_viewed_at:
+            logger.debug("No last viewed date found in Plex metadata")
         for series in matched_anilist_series:
             status = ""
             logger.info(f"Found AniList entry for Plex title: {title}")
