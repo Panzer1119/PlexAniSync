@@ -611,6 +611,27 @@ class Anilist:
                         "The Anilist score will be updated to the Plex rating."
                     )
                     self.graphql.update_score(series.anilist_id, plex_rating)
+                elif (
+                            plex_last_viewed_at is not None
+                            and (pause_after_days_inactive > 0 or drop_after_days_inactive > 0)
+                            and 0 < watched_episode_count < anilist_total_episodes
+                            and (status == "CURRENT" or status == "PAUSED")
+                    ):
+                    days_since_last_viewed = (datetime.now() - plex_last_viewed_at).days
+                    # Determine if the series should be paused or dropped
+                    should_pause = 0 < pause_after_days_inactive < days_since_last_viewed
+                    should_drop = 0 < drop_after_days_inactive < days_since_last_viewed
+                    if not should_pause and not should_drop:
+                        logger.debug(
+                            f"Series is not paused or dropped as it has been watched recently. "
+                            f"Last watched {days_since_last_viewed} days ago"
+                        )
+                    elif should_pause and status != "PAUSED":
+                        logger.info(f"Pausing series as it has been inactive for {days_since_last_viewed} days")
+                        self.graphql.update_series(series.anilist_id, watched_episode_count, "PAUSED", plex_rating)
+                    elif should_drop  and status != "DROPPED":
+                        logger.info(f"Dropping series as it has been inactive for {days_since_last_viewed} days")
+                        self.graphql.update_series(series.anilist_id, watched_episode_count, "DROPPED", plex_rating)
                 else:
                     logger.debug(
                         "Episodes watched was the same on AniList and Plex so skipping update"
@@ -652,27 +673,6 @@ class Anilist:
                 logger.info(
                     "AniList total episodes was 0 so most likely invalid data"
                 )
-            elif (
-                    plex_last_viewed_at is not None
-                    and (pause_after_days_inactive > 0 or drop_after_days_inactive > 0)
-                    and 0 < watched_episode_count < anilist_total_episodes
-                    and status == "CURRENT"
-            ):
-                days_since_last_viewed = (datetime.now() - plex_last_viewed_at).days
-                # Determine if the series should be paused or dropped
-                should_pause = 0 < pause_after_days_inactive < days_since_last_viewed
-                should_drop = 0 < drop_after_days_inactive < days_since_last_viewed
-                if not should_pause and not should_drop:
-                    logger.debug(
-                        f"Series is not paused or dropped as it has been watched recently. "
-                        f"Last watched {days_since_last_viewed} days ago"
-                    )
-                elif should_pause:
-                    logger.info(f"Pausing series as it has been inactive for {days_since_last_viewed} days")
-                    self.graphql.update_series(series.anilist_id, watched_episode_count, "PAUSED", plex_rating)
-                elif should_drop:
-                    logger.info(f"Dropping series as it has been inactive for {days_since_last_viewed} days")
-                    self.graphql.update_series(series.anilist_id, watched_episode_count, "DROPPED", plex_rating)
 
     def __update_episode_incremental(
         self, series: AnilistSeries, watched_episode_count: int, anilist_episodes_watched: int, new_status: str,
