@@ -188,7 +188,7 @@ class Anilist:
                             )
 
                             self.__add_or_update_show_by_id(
-                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating
+                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating, plex_last_viewed_at
                             )
 
                         # If custom match found continue to next
@@ -199,7 +199,7 @@ class Anilist:
                         logger.info(
                             f"Series {plex_title} has Anilist ID {plex_anilist_id} in its metadata, using that for updating")
                         self.__add_or_update_show_by_id(anilist_series, plex_title, plex_year, True, plex_watched_episode_count,
-                                                        plex_anilist_id, plex_rating)
+                                                        plex_anilist_id, plex_rating, plex_last_viewed_at)
                         continue
 
                     # Regular matching
@@ -279,7 +279,7 @@ class Anilist:
                                 f"Used custom mapping |  title: {plex_title} | season: {season_number} | anilist id: {anime_id}"
                             )
                             self.__add_or_update_show_by_id(
-                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating
+                                anilist_series, plex_title, plex_year, True, watchcount, anime_id, plex_rating, plex_last_viewed_at
                             )
 
                         # If custom match found continue to next
@@ -300,7 +300,7 @@ class Anilist:
                     if media_id_search:
                         self.__add_or_update_show_by_id(
                             anilist_series, plex_title, plex_year, skip_year_check,
-                            plex_watched_episode_count, media_id_search, plex_rating
+                            plex_watched_episode_count, media_id_search, plex_rating, plex_last_viewed_at
                         )
                     else:
                         self.__log_failed_match(f"Failed to find valid season title match on AniList for: {plex_title_lookup} season {season_number}")
