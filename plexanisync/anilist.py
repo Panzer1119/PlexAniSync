@@ -524,6 +524,7 @@ class Anilist:
         pause_after_days_inactive = self.anilist_settings.getint("pause_after_days_inactive", 0)
         drop_after_days_inactive = self.anilist_settings.getint("drop_after_days_inactive", 0)
         drop_maximum_anilist_score = self.anilist_settings.getfloat("drop_maximum_anilist_score", 40.0)
+        notes_prevent_drop_keyword = self.anilist_settings.get("notes_prevent_drop_keyword", "PlexAniSync-Keep")
         missing_episodes_ignore_inactivity = self.anilist_settings.getboolean("missing_episodes_ignore_inactivity", False)
         if not plex_last_viewed_at:
             logger.debug("No last viewed date found in Plex metadata")
@@ -586,6 +587,10 @@ class Anilist:
                     anilist_episodes_watched = int(series.progress)
                 except BaseException:
                     pass
+
+            prevent_dropping = False
+            if hasattr(series, "notes") and series.notes:
+                prevent_dropping = notes_prevent_drop_keyword in series.notes
 
             if (
                 watched_episode_count >= anilist_total_episodes > 0
@@ -660,9 +665,15 @@ class Anilist:
                                 f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
                             )
                             return
-                        elif drop_maximum_anilist_score > 0 and series.score == 0:
+                        # elif drop_maximum_anilist_score > 0 and series.score == 0:
+                        #     logger.info(
+                        #         f"Series is not dropped as it has no score, but the maximum drop score is set to {drop_maximum_anilist_score}. "
+                        #         f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
+                        #     )
+                        #     return
+                        elif prevent_dropping:
                             logger.info(
-                                f"Series is not dropped as it has no score, but the maximum drop score is set to {drop_maximum_anilist_score}. "
+                                f"Series is not dropped as it has the keyword '{notes_prevent_drop_keyword}' in the notes. "
                                 f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
                             )
                             return

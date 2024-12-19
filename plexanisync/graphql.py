@@ -36,6 +36,7 @@ class AnilistSeries:
     started_year: int
     ended_year: int
     score: int
+    notes: str
 
     def titles(self) -> List[str]:
         titles = [self.title_english, self.title_romaji, self.title_native]
@@ -124,7 +125,7 @@ class GraphQL:
         user_name = self.anilist_settings.get("username")
         lists = operation.media_list_collection(user_name=user_name, type="ANIME").lists
         lists.__fields__('name', 'status', 'is_custom_list')
-        lists.entries.__fields__('id', 'progress', 'status', 'repeat')
+        lists.entries.__fields__('id', 'progress', 'status', 'repeat', 'notes')
         lists.entries.score(format="POINT_100")
         lists.entries.media.__fields__(
             'id',
@@ -152,6 +153,7 @@ class GraphQL:
                         series_obj.status = list_entry.status
                         series_obj.progress = list_entry.progress
                         series_obj.score = list_entry.score
+                        series_obj.notes = list_entry.notes
                         anilist_series.append(series_obj)
         return anilist_series
 
@@ -267,6 +269,7 @@ class GraphQL:
             synonyms,
             started_year,
             ended_year,
-            0
+            0,
+            ""
         )
         return series

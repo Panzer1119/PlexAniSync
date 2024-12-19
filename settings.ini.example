@@ -30,4 +30,5 @@ sync_ratings = False
 pause_after_days_inactive = 0
 drop_after_days_inactive = 0
 drop_maximum_anilist_score = 40.0
+notes_prevent_drop_keyword = PlexAniSync-Keep
 missing_episodes_ignore_inactivity = False
