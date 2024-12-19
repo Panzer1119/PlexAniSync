@@ -627,7 +627,7 @@ class Anilist:
                             f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
                         )
                         return
-                    elif should_pause and should_drop:
+                    if should_pause and should_drop:
                         # If both are enabled, the higher limit will take precedence, if they are equal it will prefer dropping
                         if pause_after_days_inactive > drop_after_days_inactive:
                             should_drop = False
