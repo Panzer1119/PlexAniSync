@@ -5,6 +5,7 @@ import re
 import sys
 from dataclasses import dataclass
 from typing import List, Optional
+from datetime import datetime
 
 from plexapi.myplex import MyPlexAccount
 from plexapi.server import PlexServer
@@ -37,6 +38,7 @@ class PlexWatchedSeries:
     seasons: List[PlexSeason]
     anilist_id: Optional[int]
     rating: int
+    last_viewed_at: datetime
 
 
 class HostNameIgnoringAdapter(HTTPAdapter):
@@ -225,7 +227,8 @@ class PlexModule:
                             year,
                             seasons,
                             anilist_id,
-                            self.__get_plex_rating(show.userRating)
+                            self.__get_plex_rating(show.userRating),
+                            show.lastViewedAt
                         )
                         watched_series.append(watched_show)
 
@@ -265,7 +268,8 @@ class PlexModule:
                             year,
                             [PlexSeason(1, rating, 1, 1, 1)],
                             anilist_id,
-                            rating
+                            rating,
+                            show.lastViewedAt
                         )
                         watched_series.append(watched_show)
                         ovas_found += 1

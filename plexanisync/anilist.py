@@ -6,6 +6,7 @@ import logging
 import regex as re
 from statistics import mean
 import inflect
+from datetime import datetime
 
 from plexanisync.custom_mappings import AnilistCustomMapping
 from plexanisync.graphql import AnilistSeries, GraphQL
@@ -22,6 +23,7 @@ class AnilistMatch:
     total_episodes: int
     mapped_seasons: List[int]
     ratings: List[int]
+    last_viewed_at: datetime
 
 
 class Anilist:
@@ -55,6 +57,7 @@ class Anilist:
             plex_seasons = plex_series.seasons
             plex_show_rating = plex_series.rating
             plex_anilist_id = plex_series.anilist_id
+            plex_last_viewed_at = plex_series.last_viewed_at
 
             custom_mapped_seasons = []
 
@@ -86,7 +89,8 @@ class Anilist:
                                 plex_season.watched_episodes - mapped_start + 1,
                                 plex_season.last_episode,
                                 [plex_season.season_number],
-                                [plex_season.rating]
+                                [plex_season.rating],
+                                plex_last_viewed_at
                             ))
                             continue
                         # For multiple seasons with the same id
@@ -121,7 +125,8 @@ class Anilist:
                         True,
                         match.watched_episodes,
                         match.anilist_id,
-                        average_season_rating or plex_show_rating
+                        average_season_rating or plex_show_rating,
+                        plex_last_viewed_at
                     )
 
             # Start processing of any remaining seasons
@@ -241,7 +246,8 @@ class Anilist:
                                     plex_year,
                                     plex_watched_episode_count,
                                     False,
-                                    plex_rating
+                                    plex_rating,
+                                    plex_last_viewed_at
                                 )
                                 break
 
@@ -256,7 +262,8 @@ class Anilist:
                             plex_watched_episode_count,
                             matched_anilist_series,
                             skip_year_check,
-                            plex_rating
+                            plex_rating,
+                            plex_last_viewed_at
                         )
                         matched_anilist_series = []
                 else:
@@ -444,7 +451,8 @@ class Anilist:
 
     def __add_or_update_show_by_id(
         self, anilist_series: List[AnilistSeries], plex_title: str, plex_year: int,
-        skip_year_check: bool, watched_episodes: int, anime_id: int, plex_rating: int
+        skip_year_check: bool, watched_episodes: int, anime_id: int, plex_rating: int,
+        plex_last_viewed_at: datetime
     ):
         series = self.__find_mapped_series(anilist_series, anime_id)
         if series:
@@ -458,7 +466,8 @@ class Anilist:
                     watched_episodes,
                     [series],
                     skip_year_check,
-                    plex_rating
+                    plex_rating,
+                    plex_last_viewed_at
                 )
             elif series.progress == watched_episodes:
                 logger.debug("Episodes watched was the same on AniList and Plex so skipping update")
@@ -476,11 +485,13 @@ class Anilist:
                 plex_year,
                 watched_episodes,
                 skip_year_check,
-                plex_rating
+                plex_rating,
+                plex_last_viewed_at
             )
 
     def __add_by_id(
-        self, anilist_id: int, plex_title: str, plex_year: int, plex_watched_episode_count: int, ignore_year: bool, plex_rating: int
+        self, anilist_id: int, plex_title: str, plex_year: int, plex_watched_episode_count: int, ignore_year: bool, plex_rating: int,
+        plex_last_viewed_at: datetime
     ):
         media_lookup_result = self.graphql.search_by_id(anilist_id)
         if media_lookup_result:
@@ -490,7 +501,8 @@ class Anilist:
                 plex_watched_episode_count,
                 [media_lookup_result],
                 ignore_year,
-                plex_rating
+                plex_rating,
+                plex_last_viewed_at
             )
         else:
             logger.error(
@@ -499,7 +511,7 @@ class Anilist:
 
     def __update_entry(
         self, title: str, year: int, watched_episode_count: int, matched_anilist_series: List[AnilistSeries],
-        ignore_year: bool, plex_rating: int
+        ignore_year: bool, plex_rating: int, plex_last_viewed_at: datetime
     ):
         for series in matched_anilist_series:
             status = ""
@@ -636,6 +648,9 @@ class Anilist:
                 logger.info(
                     "AniList total episodes was 0 so most likely invalid data"
                 )
+            elif lastWatchedIsTooOld:
+                # TODO Implement updating the status to DROPPED
+                logger.info(f"")
 
     def __update_episode_incremental(
         self, series: AnilistSeries, watched_episode_count: int, anilist_episodes_watched: int, new_status: str,
