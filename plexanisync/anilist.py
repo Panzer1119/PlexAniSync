@@ -630,18 +630,18 @@ class Anilist:
                     # Determine if the series should be paused or dropped
                     should_pause = 0 < pause_after_days_inactive < days_since_last_viewed
                     should_drop = 0 < drop_after_days_inactive < days_since_last_viewed
+                    if not should_pause and not should_drop:
+                        logger.debug(
+                            f"Series is neither paused nor dropped as it has been watched recently. "
+                            f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
+                        )
+                        return
                     if missing_episodes_ignore_inactivity and plex_total_episodes < anilist_total_episodes:
                         if (should_pause and status != "PAUSED") or should_drop:
                             logger.info(
                                 f"Series is neither paused nor dropped as Plex is missing {anilist_total_episodes - plex_total_episodes} episodes. "
                                 f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
                             )
-                        return
-                    if not should_pause and not should_drop:
-                        logger.debug(
-                            f"Series is neither paused nor dropped as it has been watched recently. "
-                            f"Last watched {days_since_last_viewed} days ago ({plex_last_viewed_at.astimezone()})"
-                        )
                         return
                     if should_pause and should_drop:
                         # If both are enabled, the higher limit will take precedence, if they are equal it will prefer dropping
