@@ -12,3 +12,5 @@ logo\.psd
 settings\.ini
 update_anilist\.bat
 update_anilist_test\.bat
+anilist_cache.json
+anilist_cache.json.tmp

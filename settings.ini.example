@@ -27,3 +27,10 @@ skip_list_update = False
 username = SomeUsername
 log_failed_matches = False
 sync_ratings = False
+
+# Cache AniList media lookups (by id / by name) in a local file to avoid repeated API calls
+# The user list and list updates are never cached
+cache_enabled = True
+cache_file = anilist_cache.json
+# how long cached lookups stay valid, 168 hours = 7 days
+cache_ttl_hours = 168

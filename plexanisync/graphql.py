@@ -1,8 +1,8 @@
 # coding=utf-8
 from configparser import SectionProxy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import base64
 import json
 import logging
@@ -12,6 +12,7 @@ import requests
 from sgqlc.endpoint.requests import RequestsEndpoint
 from sgqlc.operation import Operation
 
+from plexanisync.cache import FileCache
 from plexanisync.anilist_schema import anilist_schema as schema
 from plexanisync.logger_adapter import PrefixLoggerAdapter
 
@@ -66,6 +67,14 @@ class GraphQL:
         self.skip_list_update = self.anilist_settings.getboolean("skip_list_update", False)
         self.sync_ratings = self.anilist_settings.getboolean("sync_ratings", False)
 
+        # Only media lookups (by id / by name) are cached, never the user list or updates
+        self.cache: Optional[FileCache] = None
+        if self.anilist_settings.getboolean("cache_enabled", True):
+            self.cache = FileCache(
+                self.anilist_settings.get("cache_file", "anilist_cache.json"),
+                self.anilist_settings.getint("cache_ttl_hours", 168) * 3600
+            )
+
     def check_token_expiry(self, anilist_token):
         # pad the body with == so the base64 pad validation always passes
         base64_body = anilist_token.split(".")[1] + "=="
@@ -76,6 +85,11 @@ class GraphQL:
             raise RuntimeError("Anilist token is expired")
 
     def search_by_id(self, anilist_id: int):
+        cache_key = f"id:{anilist_id}"
+        cached = self.__cache_get(cache_key)
+        if cached:
+            return AnilistSeries(**cached)
+
         operation = Operation(schema.Query)
         media = operation.media(id=anilist_id, type="ANIME")
         media.__fields__(
@@ -95,9 +109,17 @@ class GraphQL:
         data = self.__send_graphql_request(operation)
 
         media = (operation + data).media
-        return self.__mediaitem_to_object(media) if media else None
+        series = self.__mediaitem_to_object(media) if media else None
+        if series:
+            self.__cache_put(cache_key, asdict(series))
+        return series
 
     def search_by_name(self, anilist_show_name: str) -> List[AnilistSeries]:
+        cache_key = f"name:{anilist_show_name.strip().lower()}"
+        cached = self.__cache_get(cache_key)
+        if cached is not None:
+            return [AnilistSeries(**item) for item in cached]
+
         operation = Operation(schema.Query)
         media = operation.page(page=1, per_page=50).media(search=anilist_show_name, type="ANIME")
         media.__fields__(
@@ -117,7 +139,9 @@ class GraphQL:
         data = self.__send_graphql_request(operation)
 
         media = (operation + data).page.media
-        return list(map(self.__mediaitem_to_object, media))
+        results = list(map(self.__mediaitem_to_object, media))
+        self.__cache_put(cache_key, [asdict(series) for series in results])
+        return results
 
     def fetch_user_list(self) -> List[AnilistSeries]:
         operation = Operation(schema.Query)
@@ -187,6 +211,18 @@ class GraphQL:
             score_raw=score_raw
         )
         self.__send_graphql_request(op)
+
+    def __cache_get(self, key: str):
+        if self.cache is None:
+            return None
+        value = self.cache.get(key)
+        if value is not None:
+            logger.debug(f"Cache hit for {key}")
+        return value
+
+    def __cache_put(self, key: str, value):
+        if self.cache is not None:
+            self.cache.put(key, value)
 
     def __send_graphql_request(self, operation):
         retries = 10
